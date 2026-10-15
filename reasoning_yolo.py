@@ -1,5 +1,7 @@
 from pathlib import Path
-from ultralytics import YOLO
+
+import numpy as np
+from ultralytics import YOLO,SAM
 import cv2
 import sys
 sys.stdout.reconfigure(encoding='utf-8')
@@ -27,5 +29,20 @@ for r in result:
         annotated = result[0].plot()
         save_path = f"outputs/traditional/{s}"
         cv2.imwrite(save_path, annotated)
+# SAM 处理
+sam_model = SAM("sam2.1_b.pt")
+boxx = result[0].boxes.xyxy.cpu().numpy()
+sam_result = sam_model(s,boxx)
+masks = sam_result[0].masks.data.cpu().numpy()
 
+timg = cv2.imread(s)
+h,w = timg.shape[:2]
+b_mask = np.zeros((h,w),np.uint8)
+for m in masks:
+    m_uint8 = (m*255).astype(np.uint8)
+    b_mask = cv2.bitwise_or(b_mask,timg,mask=m_uint8)
+
+cv2.imwrite(f"outputs/{s}.png",b_mask)
+print(f"只经过YOLO处理的图片保存在outputs/traditional/{s}")
+print(f"经SAM处理后的图片保存在outputs/{s}.png")
 

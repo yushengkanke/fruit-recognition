@@ -1,72 +1,11 @@
-# AUTO-GENERATED classification dataset split
-# Source: shamimhasan8/fruits-dataset (Kaggle)
-# Structural reference: BengalDeltaFish (Mendeley, DOI 10.17632/ywfx54ktvn.3)
-#
-# IMPORTANT: this dataset provides IMAGE-LEVEL CLASSIFICATION labels only.
-# It does NOT contain object-detection bounding boxes. label files under
-# labels/ hold a single class id (+ class name comment) per image, NOT
-# 'class x_center y_center width height' YOLO bounding-box lines.
-# Do not feed this data.yaml into a YOLO *detection* trainer expecting boxes.
-task: classify
-path: .
-train: archive/Fruits_Dataset_Split/train/images
-val: archive/Fruits_Dataset_Split/valid/images
-test: archive/Fruits_Dataset_Split/test/images
-nc: 56
 names:
-  0: "abacate"
-  1: "abacaxi"
-  2: "abobora"
-  3: "abobrinha"
-  4: "acai"
-  5: "acerola"
-  6: "ameixa"
-  7: "amora"
-  8: "ata"
-  9: "azeitona"
-  10: "banana"
-  11: "batata"
-  12: "batata_doce"
-  13: "berinjela"
-  14: "beterraba"
-  15: "brocolis"
-  16: "caju"
-  17: "caqui"
-  18: "carambola"
-  19: "cebola"
-  20: "cenoura"
-  21: "cereja"
-  22: "couve-flor"
-  23: "cupuacu"
-  24: "damasco"
-  25: "ervilha"
-  26: "figo"
-  27: "goiaba"
-  28: "jabuticaba"
-  29: "kiwi"
-  30: "laranja"
-  31: "lichia"
-  32: "lima"
-  33: "limao"
-  34: "maca"
-  35: "mamao"
-  36: "manga"
-  37: "maracuja"
-  38: "melancia"
-  39: "melao"
-  40: "milho"
-  41: "morango"
-  42: "nabo"
-  43: "nectarina"
-  44: "pepino"
-  45: "pera"
-  46: "pessego"
-  47: "pimenta"
-  48: "pimentao"
-  49: "pitaya"
-  50: "repolho"
-  51: "roma"
-  52: "tamara"
-  53: "tangerina"
-  54: "tomate"
-  55: "uva"
+- Apple
+- Banana
+- Grape
+- Orange
+- Pineapple
+- Watermelon
+nc: 6
+test: dataset_fruits_detection-main/dataset_fruits_detection-main/test/images
+train: dataset_fruits_detection-main/dataset_fruits_detection-main/train/images
+val: dataset_fruits_detection-main/dataset_fruits_detection-main/valid/images

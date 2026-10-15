@@ -12,15 +12,15 @@ def train_yolo():
     model = YOLO("yolo26n.pt")
     result = model.train(
         data = project_root / "data.yaml",
-        epochs = 20,
-        imgsz = 1280,
-        batch = 2,
+        epochs = 40,
+        imgsz = 640,
+        batch = 8,
         device = 0,
         patience = 8,
         optimizer = "AdamW",
         lr0 = 0.001,
         save_period = 5,
-        name = 'TSv2'
+        name = 'TSv1'
     )
     print(result)
     print("训练完成，结果保存在",model.trainer.save_dir)
