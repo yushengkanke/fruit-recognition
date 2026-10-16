@@ -9,7 +9,7 @@ print("显卡："+torch.cuda.get_device_name(0))
 print("如果第一行是false，请检查pytorch和cuda版本是否匹配")
 project_root = Path(__file__).resolve().parent
 def train_yolo():
-    model = YOLO("yolo26n.pt")
+    model = YOLO("runs/detect/TSv1-3/weights/best.pt")
     result = model.train(
         data = project_root / "data.yaml",
         epochs = 40,

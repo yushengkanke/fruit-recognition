@@ -7,7 +7,7 @@ import sys
 sys.stdout.reconfigure(encoding='utf-8')
 project_root = Path(__file__).resolve().parent
 print("加载模型中")
-model = YOLO("D:/fruit recognition/runs/detect/TSv1-3/weights/best.pt")
+model = YOLO("runs/detect/TSv1-3/weights/best.pt")
 print("请输入图片的路径：")
 s = str(input())
 result = model(
