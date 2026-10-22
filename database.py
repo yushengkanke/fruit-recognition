@@ -10,13 +10,13 @@ engine = create_engine("sqlite:///app.db",echo =True)
 # connection.commit()
 
 # connection.close()
-def createuser(id:str,name:str,password:str,apikey:str):
+def createuser(id:str,name:str,password:str,apikey:str , base_url:str , u_model:str):
     # engine = create_engine("sqlite:///app.db",echo=True)
     conn = engine.connect()
     try:
        # n = conn.execute(text("select count(*) from users where id = :id"),{"id":id})
-       conn.execute(text("insert into users (id,name,password,APIkey) values (:id,:name,:password,:apikey)"),
-                    {"id": id, "name": name, "password": password, "apikey": apikey})
+       conn.execute(text("insert into users (id,name,password,APIkey,base_url,u_model) values (:id,:name,:password,:apikey,:base_url,:u_model)"),
+                    {"id": id, "name": name, "password": password, "apikey": apikey,"base_url": base_url, "u_model": u_model})
        conn.commit()
     except IntegrityError:
         raise ValueError(f"{id}已经存在")
@@ -34,9 +34,9 @@ def login (id:str,password:str):
 
     conn.close()
     if yy is None:
-        return None
+        return {"description":"用户不存在"}
     if password !=yy.password:
-        return None
+        return {"description":"密码不正确"}
     return {"id":id,"name":yy["name"]}
 
 def switch_user(id:str,password:str):
@@ -44,9 +44,20 @@ def switch_user(id:str,password:str):
 
 def alter_KEY(APIkey:str,id:str):
     conn = engine.connect()
-    conn.execute(text("update users set Apikey = :API where id = :id"),{"API":APIkey,"id":id})
+    conn.execute(text("update users set APIkey = :API where id = :id"),{"API":APIkey,"id":id})
     conn.commit()
     conn.close()
+
+def change_model(id:str,base_url:str,u_model:str):
+    conn = engine.connect()
+    conn.execute(text("update users set base_url = :base_url, u_model = :u_model where id = :id"),{"base_url":base_url,"id":id,"u_model":u_model})
+    conn.commit()
+    conn.close()
+
+def getuser(id:str):
+    conn = engine.connect()
+    us = conn.execute(text("select * from users where id = :id"),{"id":id})
+    return us.mappings().first()
 
 def upload_work(user_id:str,in_photo:str,out_photo1:str,out_photo2: str,ai_text:str):
     conn = engine.connect()
@@ -65,7 +76,7 @@ def select_work(user_id:str):
 def init_db():
     connection = engine.connect()
     connection.execute(text("create table if not exists records (r_id integer primary key autoincrement ,user_id text,in_photo text,out_photo1 text,out_photo2 text,ai_text text)"))
-    connection.execute(text("create table if not exists users (id text primary key not null, name text ,password text,APIkey text )"))
+    connection.execute(text("create table if not exists users (id text primary key not null, name text ,password text,APIkey text ,base_url text , u_model text)"))
     connection.commit()
     connection.close()
 if __name__ == "__main__":
