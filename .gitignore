@@ -53,9 +53,7 @@ dataset_fruits_detection-main/
 data/
 models/
 weights/
-runs/
 outputs/
-*.pt
 *.pth
 *.onnx
 *.engine
@@ -70,6 +68,12 @@ outputs/
 *.sqlite3
 *.csv
 *.cache
+runs/*
+!runs/detect/
+!runs/detect/TSv1-3/
+!runs/detect/TSv1-3/weights/
+!runs/detect/TSv1-3/weights/best.pt
+
 
 # ---------- 日志 / 临时文件 / 压缩包 ----------
 *.log
