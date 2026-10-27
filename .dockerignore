@@ -1,0 +1,30 @@
+# 构建上下文越大，docker build 越慢；这些都不需要进镜像
+.git
+.gitignore
+.idea
+__pycache__
+*.pyc
+*.pyo
+.venv
+venv
+env
+
+# 数据与训练产物
+dataset_fruits_detection-main
+runs
+outputs
+data
+models
+*.pt
+*.pth
+*.onnx
+*.jpg
+*.jpeg
+*.png
+*.db
+
+# 前端单独构建，后端镜像不需要
+frontend
+docs
+README.md
+answer.txt

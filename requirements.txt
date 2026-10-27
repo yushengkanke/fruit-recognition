@@ -1,0 +1,10 @@
+# 后端（FastAPI）依赖，版本与本机 TSRT 环境对齐
+fastapi==0.146.0
+uvicorn[standard]==0.54.0
+python-multipart==0.0.32
+SQLAlchemy==2.1.5
+openai==3.31.0
+ultralytics==8.4.175
+
+# opencv 不写在这里：ultralytics 会拉 opencv-python，
+# Dockerfile 里会把它换成 opencv-python-headless（容器里没有图形库）

@@ -42,7 +42,7 @@ class runmodel(BaseModel):
 async def startup(app: FastAPI):
     init_db()
     yield
-app = FastAPI()
+app = FastAPI(lifespan=startup)
 MEDIA_DIR = Path(__file__).resolve().parent / "data" / "media"
 MEDIA_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -56,29 +56,33 @@ async def root():
 
 @app.post("/logins")
 def logins(logins: loginmodel):
-    ans = login(logins.id,logins.password)
-    if ans["description"]==None:
-        us_id = ans["id"]
-        return ans.mappings()
-    else:
-        return ans.mappings()
+    ans = login(logins.id, logins.password)
+    if "description" in ans:
+        raise HTTPException(status_code=401, detail=ans["description"])
+    return ans
+
+
 @app.post("/register")
 def register(user: usermodel):
-    res = createuser(user.id,user.name,user.password,user.APIkey)
-    if "description" not in res:
-        return {"message":"用户创建成功"}
-    else:
-        return HTTPException(status_code=401,detail = res["description"])
+    try:
+        createuser(
+            user.id, user.name, user.password, user.APIkey,
+            "https://api.deepseek.com", "deepseek-flash",
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return {"message": "用户创建成功"}
+
+
 @app.post("/changeapikey")
-def changeapikey(ins:changeapikeymodel):
-    return alter_KEY(ins.key,ins.user_id)
+def changeapikey(ins: changeapikeymodel):
+    return alter_KEY(ins.key, ins.user_id)
 
 @app.post("/run")
 async def run(
     user_id: str = Form(...),
     file: UploadFile = File(...),
 ):
-    # 1. 查用户配置
     user = getuser(user_id)
     if user is None:
         raise HTTPException(status_code=404, detail="用户不存在")
@@ -91,7 +95,6 @@ async def run(
     if not api_key:
         raise HTTPException(status_code=400, detail="请先配置 API key")
 
-    # 2. 保存上传图片
     raw = await file.read()
     if not raw:
         raise HTTPException(status_code=400, detail="图片是空的")
@@ -103,7 +106,6 @@ async def run(
     source_path = task_dir / "source.jpg"
     source_path.write_bytes(raw)
 
-    # 3. YOLO + SAM
     try:
         det = await run_in_threadpool(YOLOSAM, str(source_path))
     except Exception as exc:
@@ -112,7 +114,6 @@ async def run(
             detail=f"YOLO/SAM 推理失败：{exc}",
         ) from exc
 
-    # 4. 保存结果图
     boxes_url = None
     mask_url = None
 
@@ -126,7 +127,6 @@ async def run(
         cv2.imwrite(str(mask_path), det["seg_result"])
         mask_url = f"/media/{task_id}/mask.png"
 
-    # 5. 调用大模型
     try:
         ai_text = await run_in_threadpool(
             run_model,
@@ -136,10 +136,8 @@ async def run(
             u_model,
         )
     except Exception as exc:
-        # 大模型失败也保留 YOLO/SAM 结果
         ai_text = f"大模型调用失败：{exc}"
 
-    # 6. 写数据库
     upload_work(
         user_id,
         f"/media/{task_id}/source.jpg",
@@ -148,7 +146,6 @@ async def run(
         ai_text or "",
     )
 
-    # 7. 返回给前端
     return {
         "user_id": user_id,
         "source_url": f"/media/{task_id}/source.jpg",

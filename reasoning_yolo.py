@@ -7,21 +7,23 @@ import sys
 sys.stdout.reconfigure(encoding='utf-8')
 project_root = Path(__file__).resolve().parent
 # print("加载模型中")
-model = YOLO("runs/detect/TSv1-3/weights/best.pt")
-sam_model = SAM("sam2.1_b.pt")
+# 本地默认路径不变；Docker 里用环境变量指到 /app/models
+model = YOLO(os.getenv("YOLO_WEIGHTS", "runs/detect/TSv1-3/weights/best.pt"))
+sam_model = SAM(os.getenv("SAM_WEIGHTS", "sam2.1_b.pt"))
 # print("请输入图片的路径：")
 # s = str(input())
-def YOLOSAM(s :str):
+def YOLOSAM(s :str, conf_thres :float = 0.5, iou_thres :float = 0.45):
     result = model(
         s,
-        conf = 0.5,
-        iou = 0.45,
+        conf = conf_thres,
+        iou = iou_thres,
 
     )
     yolophoto = None
 
     conf = 0
     class_name = ""
+    detections = []
 
     for r in result:
         boxes = r.boxes
@@ -30,10 +32,34 @@ def YOLOSAM(s :str):
             conf = float(box.conf[0])
             class_name = model.names[cls_id]
             yolophoto = result[0].plot()
+            detections.append({
+                "class_name": class_name,
+                "conf": conf,
+                "xyxy": [float(v) for v in box.xyxy[0].tolist()],
+            })
 
     boxx = result[0].boxes.xyxy.cpu().numpy()
+    if len(boxx) == 0:
+        # 没有检出目标时直接返回，避免 SAM 收到空 bbox 报错
+        return {
+            "yolophoto": result[0].plot(),
+            "conf": conf,
+            "class_name": class_name,
+            "seg_result": None,
+            "detections": detections,
+        }
+
     sam_result = sam_model(s,bboxes=boxx)
-    masks = sam_result[0].masks.data.cpu().numpy()
+    sam_masks = sam_result[0].masks
+    if sam_masks is None:
+        return {
+            "yolophoto": yolophoto,
+            "conf": conf,
+            "class_name": class_name,
+            "seg_result": None,
+            "detections": detections,
+        }
+    masks = sam_masks.data.cpu().numpy()
     timg = cv2.imread(s)
     h,w = timg.shape[:2]
     b_mask = np.zeros((h,w),np.uint8)
@@ -51,6 +77,7 @@ def YOLOSAM(s :str):
         "conf":conf,
         "class_name":class_name,
         "seg_result":seg_result,
+        "detections":detections,
     }
     return ans
 # out_name = os.path.basename(s)

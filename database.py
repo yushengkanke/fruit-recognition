@@ -1,7 +1,11 @@
+import os
+
 import sqlalchemy
 from sqlalchemy import create_engine,text
 from sqlalchemy.exc import IntegrityError
-engine = create_engine("sqlite:///app.db",echo =True)
+# 默认仍是项目目录下的 app.db（本地照旧）；
+# Docker 里通过 DATABASE_URL 指到 /app/data/app.db，数据才会落在挂载卷里
+engine = create_engine(os.getenv("DATABASE_URL", "sqlite:///app.db"), echo=True)
 
 # connection = engine.connect()
 

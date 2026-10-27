@@ -1,2 +1,121 @@
-/dataset_fruits_detection-main
-sam2.1_b.pt
+# ============================================================
+# 水果识别项目 · Git 忽略规则
+# 原则：仓库只保留“运行 / 构建 / 部署需要的源码与配置”。
+#       数据、权重、训练产物、IDE 配置、文档报告一律不上传。
+#       总报告单独提交，不放进本仓库。
+# ============================================================
+
+# ---------- IDE / 编辑器 ----------
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+*.code-workspace
+
+# ---------- 操作系统 ----------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------- Python ----------
+__pycache__/
+*.py[cod]
+*$py.class
+.python-version
+.venv/
+venv/
+env/
+ENV/
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+.ipynb_checkpoints/
+
+# ---------- 环境变量 / 密钥 ----------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.crt
+secrets/
+
+# ---------- 数据集 / 模型权重 / 训练产物 ----------
+# 这些体积大、可由训练或单独上传获得，绝不进 Git
+dataset_fruits_detection-main/
+data/
+models/
+weights/
+runs/
+outputs/
+*.pt
+*.pth
+*.onnx
+*.engine
+*.h5
+*.keras
+*.pkl
+*.joblib
+*.npy
+*.npz
+*.db
+*.sqlite
+*.sqlite3
+*.csv
+*.cache
+
+# ---------- 日志 / 临时文件 / 压缩包 ----------
+*.log
+logs/
+*.tmp
+*.temp
+*.bak
+*.orig
+*.rej
+*.swp
+*~
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+*.rar
+
+# ---------- 文档 / 报告 / 演示材料 ----------
+# 部署说明、阶段计划、总报告都在仓库外单独提交
+docs/
+*.md
+*.pdf
+*.doc
+*.docx
+*.ppt
+*.pptx
+*.xls
+*.xlsx
+*.odt
+*.ods
+*.odp
+*.tex
+*.rtf
+
+# ---------- 图片 / 截图 ----------
+# 根目录三张测试图是前端示例，保留；其余图片、结果图、截图不进仓库
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+*.webp
+!test1.jpg
+!test2.jpg
+!test3.jpg
+
+# ---------- 其他生成物 ----------
+/answer.txt
