@@ -56,9 +56,18 @@ class ApiClient:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
 
-    def _request(self, method: str, path: str, **kwargs):
+    def _request(self, method: str, path: str, token: str | None = None, **kwargs):
+        headers = dict(kwargs.pop("headers", {}) or {})
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
         try:
-            resp = requests.request(method, f"{self.base_url}{path}", timeout=self.timeout, **kwargs)
+            resp = requests.request(
+                method,
+                f"{self.base_url}{path}",
+                timeout=self.timeout,
+                headers=headers or None,
+                **kwargs,
+            )
         except requests.RequestException as exc:
             raise ApiError(
                 f"连不上 FastAPI {self.base_url}（{type(exc).__name__}）。"
@@ -86,26 +95,30 @@ class ApiClient:
     def login(self, user_id: str, password: str) -> dict:
         return self._request("POST", "/logins", json={"id": user_id, "password": password})
 
-    def set_api_key(self, user_id: str, api_key: str) -> dict:
+    def set_api_key(self, token: str, user_id: str, api_key: str) -> dict:
         return self._request(
-            "POST", "/changeapikey",
+            "POST", "/changeapikey", token=token,
             json={"user_id": user_id, "key": api_key},
         )
 
-    def run(self, user_id: str, image_path: str) -> dict:
+    def run(self, token: str, user_id: str, image_path: str) -> dict:
         with open(image_path, "rb") as fh:
             return self._request(
-                "POST", "/run",
+                "POST", "/run", token=token,
                 data={"user_id": user_id},
                 files={"file": (Path(image_path).name or "upload.jpg", fh, "image/jpeg")},
             )
 
-    def download_image(self, url: str | None) -> Image.Image | None:
+    def download_image(self, url: str | None, token: str | None = None) -> Image.Image | None:
         if not url:
             return None
         full = url if url.startswith("http") else f"{self.base_url}{url}"
+        headers = {}
+        # 只在请求本后端时附带 token，避免把登录令牌发给第三方 URL
+        if token and full.startswith(self.base_url):
+            headers["Authorization"] = f"Bearer {token}"
         try:
-            resp = requests.get(full, timeout=30)
+            resp = requests.get(full, timeout=30, headers=headers or None)
             if resp.status_code != 200:
                 return None
             return Image.open(io.BytesIO(resp.content)).convert("RGB")
@@ -114,6 +127,52 @@ class ApiClient:
 
 
 client = ApiClient(API_BASE, API_TIMEOUT)
+
+
+def _session_token(session) -> str | None:
+    if isinstance(session, dict):
+        token = session.get("token")
+        if isinstance(token, str) and token:
+            return token
+    return None
+
+
+def format_meta(data: dict | None) -> str:
+    data = data or {}
+    counts = data.get("class_counts") or {}
+    if not isinstance(counts, dict) or not counts:
+        return "未检出水果"
+    parts = [f"{name} × {count}" for name, count in counts.items()]
+    meta = "检测到：" + "、".join(parts)
+    total = data.get("total_count")
+    if total is not None:
+        meta += f" ｜ 共 **{int(total)}** 个目标"
+    conf = data.get("conf")
+    if conf is not None:
+        try:
+            meta += f" ｜ 最高置信度：{float(conf):.3f}"
+        except (TypeError, ValueError):
+            pass
+    return meta
+
+
+def build_status(data: dict | None) -> str:
+    """分别渲染传统模型和大模型的状态，避免大模型失败时仍显示“识别完成”。"""
+    data = data or {}
+    total = int(data.get("total_count") or 0)
+    if total:
+        detection = f"✅ 传统模型：检出 **{total}** 个目标"
+    else:
+        detection = "⚠️ 传统模型：未检出目标"
+
+    ai_status = data.get("ai_status")
+    if ai_status == "succeeded":
+        ai = "✅ 大模型：分析成功"
+    elif ai_status == "failed":
+        ai = "❌ 大模型：调用失败"
+    else:
+        ai = "❌ 大模型：未返回状态"
+    return f"{detection}<br>{ai}"
 
 
 def do_register(user_id: str, name: str, password: str, api_key: str) -> str:
@@ -130,61 +189,71 @@ def do_login(user_id: str, password: str):
     try:
         data = client.login((user_id or "").strip(), password or "")
     except ApiError as exc:
-        return "", gr.update(visible=True), gr.update(visible=False), "当前用户：", f"❌ 登录失败：{exc}"
+        return {}, gr.update(visible=True), gr.update(visible=False), "当前用户：", f"❌ 登录失败：{exc}"
 
-    name = data.get("name") or data.get("id") or user_id
+    token = (data or {}).get("access_token") or ""
+    if not token:
+        return {}, gr.update(visible=True), gr.update(visible=False), "当前用户：", "❌ 登录失败：后端没有返回登录令牌"
+
+    session = {
+        "id": data.get("id") or user_id,
+        "name": data.get("name") or data.get("id") or user_id,
+        "token": token,
+    }
+    name = session["name"]
     return (
-        data.get("id") or user_id,
+        session,
         gr.update(visible=False),
         gr.update(visible=True),
-        f"当前用户：**{name}**（{data.get('id')}）",
+        f"当前用户：**{name}**（{session['id']}）",
         f"✅ 欢迎 {name}",
     )
 
 
 def do_logout():
     return (
-        "", gr.update(visible=True), gr.update(visible=False),
+        {}, gr.update(visible=True), gr.update(visible=False),
         "当前用户：", "已退出",
         None, None, "", "", "",
     )
 
 
-def save_api_key(user_id: str, api_key: str) -> str:
-    if not user_id:
+def save_api_key(session: dict | None, api_key: str) -> str:
+    token = _session_token(session)
+    user_id = session.get("id") if isinstance(session, dict) else None
+    if not token or not user_id:
         return "❌ 请先登录"
     if not (api_key or "").strip():
         return "❌ API Key 不能为空"
     try:
-        client.set_api_key(user_id, api_key.strip())
+        client.set_api_key(token, user_id, api_key.strip())
     except ApiError as exc:
         return f"❌ 保存失败：{exc}"
     return "✅ API Key 已保存到你的账号"
 
 
-def run_task(user_id: str, image_path: str | None, progress: gr.Progress = gr.Progress()):
-    if not user_id:
+def run_task(session: dict | None, image_path: str | None, progress: gr.Progress = gr.Progress()):
+    token = _session_token(session)
+    user_id = session.get("id") if isinstance(session, dict) else None
+    if not token or not user_id:
         raise gr.Error("请先登录")
     if not image_path:
         raise gr.Error("请先上传一张图片")
 
     progress(0.1, desc="上传图片，后端正在跑 YOLO + SAM + 大模型…")
     try:
-        data = client.run(user_id, image_path)
+        data = client.run(token, user_id, image_path) or {}
     except ApiError as exc:
         raise gr.Error(f"识别失败：{exc}") from exc
 
-    boxes = client.download_image((data or {}).get("boxes_url"))
-    mask = client.download_image((data or {}).get("mask_url"))
-    ai_text = ((data or {}).get("ai_text") or "").strip() or "（这次没有返回大模型文字）"
+    boxes = client.download_image(data.get("boxes_url"), token)
+    mask = client.download_image(data.get("mask_url"), token)
+    ai_text = (data.get("ai_text") or "").strip()
+    if not ai_text:
+        ai_text = "（这次没有返回大模型文字）"
 
-    class_name = (data or {}).get("class_name") or "未检出"
-    conf = (data or {}).get("conf")
-    meta = f"类别：**{class_name}**"
-    if conf:
-        meta += f" ｜ 置信度：{float(conf):.3f}"
-
-    status = "✅ 识别完成" if (data or {}).get("boxes_url") else "⚠️ 没有检出目标，可以换张图或调低阈值"
+    meta = format_meta(data)
+    status = build_status(data)
     return boxes, mask, ai_text, meta, status
 
 
@@ -196,7 +265,7 @@ def build_demo() -> gr.Blocks:
             elem_id="app-subtitle",
         )
 
-        user_state = gr.State("")
+        session_state = gr.State({})
 
         with gr.Column(visible=True) as auth_col:
             with gr.Tabs():
@@ -267,7 +336,7 @@ def build_demo() -> gr.Blocks:
         login_btn.click(
             do_login,
             inputs=[login_id, login_password],
-            outputs=[user_state, auth_col, app_col, user_label, login_msg],
+            outputs=[session_state, auth_col, app_col, user_label, login_msg],
         )
         reg_btn.click(
             do_register,
@@ -276,19 +345,19 @@ def build_demo() -> gr.Blocks:
         )
         save_key_btn.click(
             save_api_key,
-            inputs=[user_state, api_key_box],
+            inputs=[session_state, api_key_box],
             outputs=[key_msg],
         )
         run_btn.click(
             run_task,
-            inputs=[user_state, image_input],
+            inputs=[session_state, image_input],
             outputs=[boxes_out, mask_out, ai_text, meta_md, status_md],
         )
         logout_btn.click(
             do_logout,
             inputs=[],
             outputs=[
-                user_state, auth_col, app_col, user_label, login_msg,
+                session_state, auth_col, app_col, user_label, login_msg,
                 boxes_out, mask_out, ai_text, meta_md, status_md,
             ],
         )

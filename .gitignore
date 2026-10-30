@@ -123,3 +123,19 @@ docs/
 
 # ---------- 其他生成物 ----------
 /answer.txt
+
+# ---------- 本次任务产生的运行时 / 临时文件 ----------
+# SQLite 数据库、迁移备份以及 journal/wal/shm 边车文件
+app.db
+*.db.bak-*
+*.db-journal
+*.db-wal
+*.db-shm
+
+# 未配置 AUTH_SECRET 时自动生成的登录 token 签名密钥
+.auth_secret
+
+# 本次排查使用的临时验证目录
+.verify-*/
+.fruit-tests-*/
+.run-smoke-*/

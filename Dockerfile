@@ -27,7 +27,7 @@ RUN pip install -r requirements.txt \
  && pip install "opencv-python-headless==5.0.0.93"
 
 # 只拷后端用到的代码，不要把 dataset / runs / 权重打进镜像
-COPY services.py database.py reasoning_yolo.py use_model.py ./
+COPY services.py database.py security.py reasoning_yolo.py use_model.py ./
 
 EXPOSE 8000
 
