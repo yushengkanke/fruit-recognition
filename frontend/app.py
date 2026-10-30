@@ -175,6 +175,11 @@ def build_status(data: dict | None) -> str:
     return f"{detection}<br>{ai}"
 
 
+def clear_api_key_box() -> str:
+    """关闭后再次展开 API Key 设置时，清空输入框里残留的 Key。"""
+    return ""
+
+
 def do_register(user_id: str, name: str, password: str, api_key: str) -> str:
     if not (user_id or "").strip():
         return "❌ 用户 ID 不能为空"
@@ -303,7 +308,7 @@ def build_demo() -> gr.Blocks:
                     run_btn = gr.Button("开始识别", variant="primary")
                     status_md = gr.Markdown("上传图片后点「开始识别」。")
 
-                    with gr.Accordion("⚙️ API Key 设置", open=False):
+                    with gr.Accordion("⚙️ API Key 设置", open=False) as api_accordion:
                         api_key_box = gr.Textbox(
                             label="API Key", type="password",
                             placeholder="sk-...（保存到 FastAPI 的 users 表）",
@@ -325,13 +330,13 @@ def build_demo() -> gr.Blocks:
                             gr.Markdown("### 方案 A：YOLO + SAM2")
                             boxes_out = gr.Image(label="检测框", type="numpy", height=320)
                             mask_out = gr.Image(label="分割掩码", type="numpy", height=320)
+                            meta_md = gr.Markdown("")
                         with gr.Column():
                             gr.Markdown("### 方案 B：多模态大模型")
                             ai_text = gr.Textbox(
                                 label="模型分析结果", lines=14,
                                 placeholder="识别完成后显示大模型返回的文字。",
                             )
-                            meta_md = gr.Markdown("")
 
         login_btn.click(
             do_login,
@@ -347,6 +352,12 @@ def build_demo() -> gr.Blocks:
             save_api_key,
             inputs=[session_state, api_key_box],
             outputs=[key_msg],
+        )
+        api_accordion.expand(
+            clear_api_key_box,
+            inputs=[],
+            outputs=[api_key_box],
+            queue=False,
         )
         run_btn.click(
             run_task,
